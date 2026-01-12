@@ -28,7 +28,7 @@ class NYUDicomT1WT2WReconVolumeDataset(Dataset):
             root, 
             fold, 
             recon_contrast='t2w',
-            fetch_qbc=False,
+            fetch_body=False,
             accel=4,
             center_frac=0.08,
             kspace_noise_factor=0,
@@ -36,7 +36,7 @@ class NYUDicomT1WT2WReconVolumeDataset(Dataset):
         
         super().__init__()
         self.root = root
-        self.fetch_qbc = fetch_qbc
+        self.fetch_body = fetch_body
         self.accel = accel
         self.center_frac = center_frac
         self.kspace_noise_factor = kspace_noise_factor
@@ -81,7 +81,7 @@ class NYUDicomT1WT2WReconVolumeDataset(Dataset):
         # Derive body mask
         body = []
         for i in range(volume_t2w.shape[0]):
-            body_slice = generate_qbc_mask(volume_t2w[i])
+            body_slice = generate_body_mask(volume_t2w[i])
             body.append(body_slice)
         body = np.stack(body, axis=0)
 
@@ -205,7 +205,7 @@ def smooth_contour_points(contour: np.ndarray, radius: int = 3, sigma: int = 10)
 
     return np.array(smooth_contours)
 
-def generate_qbc_mask(image: np.ndarray) -> np.ndarray:
+def generate_body_mask(image: np.ndarray) -> np.ndarray:
     """
     Adapted from `ganslate` code: 
     https://github.com/ganslate-team/ganslate/blob/a90d92eaf041331cd3397f788cb60884cb0e176b/ganslate/data/utils/body_mask.py#L46

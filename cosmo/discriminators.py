@@ -17,7 +17,7 @@ class PatchDiscriminator(nn.Module):
         activation_norm_type,
         weight_norm_type
         ):
-                 
+
         super().__init__()
         
         padding = int(np.floor((kernel_size - 1.0) / 2))

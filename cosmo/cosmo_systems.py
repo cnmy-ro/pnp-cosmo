@@ -100,7 +100,7 @@ class StochasticContentMUNIT(BaseCoSMo):
 
         # Training options
         if mode == 'train':
-            self.qbc_conditioned_dis = conf['qbc_conditioned_dis']
+            self.body_conditioned_dis = conf['body_conditioned_dis']
             self.paired_finetuning = conf['paired_finetuning']
 
         super().__init__(conf, mode)
@@ -236,9 +236,9 @@ class StochasticContentMUNIT(BaseCoSMo):
         image_vu_gan = image_vu.clone()
         image_uv_gan = image_uv.clone()
         
-        if self.qbc_conditioned_dis:
-            image_vu_gan = torch.cat([image_vu_gan, self.input['qbc_v']], dim=1)
-            image_uv_gan = torch.cat([image_uv_gan, self.input['qbc_u']], dim=1)
+        if self.body_conditioned_dis:
+            image_vu_gan = torch.cat([image_vu_gan, self.input['body_v']], dim=1)
+            image_uv_gan = torch.cat([image_uv_gan, self.input['body_u']], dim=1)
         pred = self.networks[f'dis_{u}'](image_vu_gan)
         loss_gan_autoenc_u = self.criteria['gan'](pred, is_real=True)
         pred = self.networks[f'dis_{v}'](image_uv_gan)        
@@ -318,11 +318,11 @@ class StochasticContentMUNIT(BaseCoSMo):
         image_vu = self.output['image_vu'].detach()
         image_uv = self.output['image_uv'].detach()
 
-        if self.qbc_conditioned_dis:
-            image_u = torch.cat([image_u, self.input['qbc_u']], dim=1)
-            image_v = torch.cat([image_v, self.input['qbc_v']], dim=1)
-            image_vu = torch.cat([image_vu, self.input['qbc_v']], dim=1)
-            image_uv = torch.cat([image_uv, self.input['qbc_u']], dim=1)
+        if self.body_conditioned_dis:
+            image_u = torch.cat([image_u, self.input['body_u']], dim=1)
+            image_v = torch.cat([image_v, self.input['body_v']], dim=1)
+            image_vu = torch.cat([image_vu, self.input['body_v']], dim=1)
+            image_uv = torch.cat([image_uv, self.input['body_u']], dim=1)
 
         # Domain u
         pred_real = self.networks[f'dis_{u}'](image_u)

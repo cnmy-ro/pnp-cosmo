@@ -13,7 +13,7 @@ load_checkpoint: /exports/lkeb-hpc/csrao/training_logs/nyu_brain_dicom_t1t2/tria
 dataset:
   root: D:/Datasets/NYU_fastMRI/brain_dicom_t1t2_dataset
   fold: 1  # Crossval
-  fetch_qbc: True
+  fetch_body: True
   size_divisor: 4
   paired: True  # PFT
 
@@ -68,5 +68,5 @@ optimizer:
   lr_autoenc: 0.0001
   lr_dis: 0.0004
   
-qbc_conditioned_dis: True
+body_conditioned_dis: True
 paired_finetuning: True  # PFT

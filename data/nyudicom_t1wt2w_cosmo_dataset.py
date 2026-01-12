@@ -29,14 +29,14 @@ class NYUDicomT1WT2WCoSMoDataset(Dataset):
             self,
             root, 
             fold,
-            fetch_qbc=False,
+            fetch_body=False,
             size_divisor=32, 
             paired=False
             ):
     
         super().__init__()
         self.root = root
-        self.fetch_qbc = fetch_qbc
+        self.fetch_body = fetch_body
         self.size_divisor = size_divisor
         self.paired = paired
 
@@ -59,18 +59,18 @@ class NYUDicomT1WT2WCoSMoDataset(Dataset):
         if not self.paired:
             image_t1w, _ = self._resample_slice_to_t2w_spacing(image_t1w, spacing_t1w)
 
-        # Generate QBC mask
-        if self.fetch_qbc:
-            qbc_t1w = generate_qbc_mask(image_t1w)
-            if self.paired: qbc_t2w = qbc_t1w
-            else:           qbc_t2w = generate_qbc_mask(image_t2w)
+        # Generate body mask
+        if self.fetch_body:
+            body_t1w = generate_body_mask(image_t1w)
+            if self.paired: body_t2w = body_t1w
+            else:           body_t2w = generate_body_mask(image_t2w)
 
         # Pad
         image_t1w = pad_to_nearest_divisible_size(image_t1w, divisor=self.size_divisor, strict=False, pad_mode='reflect')
         image_t2w = pad_to_nearest_divisible_size(image_t2w, divisor=self.size_divisor, strict=False, pad_mode='reflect')
-        if self.fetch_qbc:
-            qbc_t1w = pad_to_nearest_divisible_size(qbc_t1w, divisor=self.size_divisor, strict=False, pad_mode='reflect')
-            qbc_t2w = pad_to_nearest_divisible_size(qbc_t2w, divisor=self.size_divisor, strict=False, pad_mode='reflect')
+        if self.fetch_body:
+            body_t1w = pad_to_nearest_divisible_size(body_t1w, divisor=self.size_divisor, strict=False, pad_mode='reflect')
+            body_t2w = pad_to_nearest_divisible_size(body_t2w, divisor=self.size_divisor, strict=False, pad_mode='reflect')
 
         # Normalize
         image_t1w = rescale_intensity(image_t1w, from_range=t1w_values_range, to_range=(-1, 1), clip=True)
@@ -79,14 +79,14 @@ class NYUDicomT1WT2WCoSMoDataset(Dataset):
         # To tensor
         image_t1w = torch.tensor(image_t1w, dtype=torch.float).unsqueeze(0)
         image_t2w = torch.tensor(image_t2w, dtype=torch.float).unsqueeze(0)
-        if  self.fetch_qbc:
-            qbc_t1w = torch.tensor(qbc_t1w, dtype=torch.float).unsqueeze(0)
-            qbc_t2w = torch.tensor(qbc_t2w, dtype=torch.float).unsqueeze(0)
+        if  self.fetch_body:
+            body_t1w = torch.tensor(body_t1w, dtype=torch.float).unsqueeze(0)
+            body_t2w = torch.tensor(body_t2w, dtype=torch.float).unsqueeze(0)
 
         # Return
         example = {'image_u': image_t1w, 'image_v': image_t2w}
-        if self.fetch_qbc:
-            example.update({'qbc_u': qbc_t1w, 'qbc_v': qbc_t2w})
+        if self.fetch_body:
+            example.update({'body_u': body_t1w, 'body_v': body_t2w})
         return example
     
     def _fetch_slices(self, idx):
@@ -223,7 +223,7 @@ def smooth_contour_points(contour: np.ndarray, radius: int = 3, sigma: int = 10)
     return np.array(smooth_contours)
 
 
-def generate_qbc_mask(image: np.ndarray) -> np.ndarray:
+def generate_body_mask(image: np.ndarray) -> np.ndarray:
     """
     Function adapted from `ganslate`: 
     https://github.com/ganslate-team/ganslate/blob/a90d92eaf041331cd3397f788cb60884cb0e176b/ganslate/data/utils/body_mask.py#L46
