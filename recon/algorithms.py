@@ -114,13 +114,9 @@ def pnp_cosmo(input, config):
 # ---
 # Utils
 
-def l1_norm(tensor):
-    """ L1-norm:  sum(abs(x)) """
-    return torch.linalg.norm(tensor.flatten(), ord=1)
+def l1_norm(tensor): return torch.linalg.norm(tensor.flatten(), ord=1)
 
-def l2_norm(tensor):
-    """ L2-norm:  sqrt(x * conj(x.T)) """
-    return torch.linalg.norm(tensor.flatten(), ord=2)
+def l2_norm(tensor): return torch.linalg.norm(tensor.flatten(), ord=2)
 
 def sense2d_forward_op(image, csm, mask, phase=None):
     if phase is not None: image = image * torch.exp(1j * phase)

@@ -28,7 +28,7 @@ def main():
     torch.manual_seed(conf['seed'])
 
     # Logging
-    # wandb_init(conf)
+    wandb_init(conf)
 
     # Data
     train_dataset = NYUDicomT1WT2WCoSMoDataset(**conf['dataset'])
@@ -51,8 +51,8 @@ def main():
             print(it, {k: f"{v:.3f}" for k,v in losses.items()})
             # wandb_log_iter(it, losses, visuals, mode='train')
         
-        # if it % conf['val_freq'] == 0:
-        #     save_checkpoint(model, it, conf)
+        if it % conf['val_freq'] == 0:
+            save_checkpoint(model, it, conf)
         
 
 

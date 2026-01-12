@@ -61,15 +61,7 @@ class MultiScalePatchDiscriminator(nn.Module):
 
         self.discriminators = nn.ModuleList()
         for _ in range(num_discriminators):
-            discriminator = PatchDiscriminator(
-                in_channels,        
-                num_layers,
-                num_filters,
-                max_num_filters,
-                kernel_size,
-                activation_norm_type,
-                weight_norm_type
-                )
+            discriminator = PatchDiscriminator(in_channels, num_layers, num_filters, max_num_filters, kernel_size, activation_norm_type, weight_norm_type)
             self.discriminators.append(discriminator)
 
     def forward(self, input):

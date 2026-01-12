@@ -38,7 +38,7 @@ class SCMUNITAutoEncoder(nn.Module):
             padding_mode='reflect', 
             activation_norm_type=style_norm_type, 
             weight_norm_type=weight_norm_type, 
-            nonlinearity='relu')
+            nonlinearity='leakyrelu')
 
         self.content_encoder = ContentEncoder(
             in_channels=in_channels,
@@ -50,7 +50,7 @@ class SCMUNITAutoEncoder(nn.Module):
             padding_mode='reflect',
             activation_norm_type=content_norm_type,
             weight_norm_type=weight_norm_type,
-            nonlinearity='relu')
+            nonlinearity='leakyrelu')
         
         self.decoder = Decoder(
             in_channels=in_channels,
@@ -61,7 +61,7 @@ class SCMUNITAutoEncoder(nn.Module):
             num_upsamples=num_downsamples_content,
             padding_mode='reflect',
             weight_norm_type=weight_norm_type,
-            nonlinearity='relu',
+            nonlinearity='leakyrelu',
             output_nonlinearity=output_nonlinearity)
         
         self.mlp = MLP(
@@ -70,7 +70,7 @@ class SCMUNITAutoEncoder(nn.Module):
             latent_features=num_features_mlp, 
             num_layers=num_layers_mlp, 
             norm=None, 
-            nonlinearity='relu')
+            nonlinearity='leakyrelu')
         
         self.style_channels = style_latent_size
 

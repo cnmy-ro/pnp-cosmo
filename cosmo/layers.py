@@ -1,5 +1,3 @@
-import functools
-
 import torch
 from torch import nn
 from torch.nn.utils import spectral_norm
@@ -10,7 +8,7 @@ class LinearBlock(nn.Module):
     def __init__(
         self, 
         in_channels, out_channels, bias=True, 
-        weight_norm_type=None, weight_norm_params=None, activation_norm_type=None, activation_norm_params=None, 
+        weight_norm_type=None, activation_norm_type=None, activation_norm_params=None, 
         nonlinearity='leakyrelu'):
 
         super().__init__()
@@ -19,9 +17,7 @@ class LinearBlock(nn.Module):
         self.weight_norm_type = weight_norm_type
         linear_layer = nn.Linear(in_channels, out_channels, bias)
         if self.weight_norm_type == 'spectral':
-            weight_norm_params = {} if weight_norm_params is None else weight_norm_params
-            weight_norm = functools.partial(spectral_norm, **weight_norm_params)
-            linear_layer = weight_norm(linear_layer)
+            linear_layer = spectral_norm(linear_layer)
 
         # Normalization layer
         if activation_norm_type == 'instance':
@@ -46,7 +42,7 @@ class Conv2dBlock(nn.Module):
     def __init__(
         self, 
         in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, bias=True, padding_mode='reflect',
-        weight_norm_type=None, weight_norm_params=None, activation_norm_type=None, activation_norm_params=None, 
+        weight_norm_type=None, activation_norm_type=None, activation_norm_params=None, 
         nonlinearity='leakyrelu'):
 
         super().__init__()
@@ -55,9 +51,7 @@ class Conv2dBlock(nn.Module):
         self.weight_norm_type = weight_norm_type
         conv_layer = nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding, dilation, bias=bias, padding_mode=padding_mode)
         if self.weight_norm_type == 'spectral':
-            weight_norm_params = {} if weight_norm_params is None else weight_norm_params
-            weight_norm = functools.partial(spectral_norm, **weight_norm_params)
-            conv_layer = weight_norm(conv_layer)
+            conv_layer = spectral_norm(conv_layer)
 
         # Normalization layer
         if activation_norm_type == 'instance':
@@ -95,7 +89,7 @@ class ResConv2dBlock(nn.Module):
     def __init__(
         self, 
         in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, bias=True, padding_mode='reflect',
-        weight_norm_type=None, weight_norm_params=None, activation_norm_type=None, activation_norm_params=None, 
+        weight_norm_type=None, activation_norm_type=None, activation_norm_params=None, 
         nonlinearity='leakyrelu'):
         
         super().__init__()
@@ -109,7 +103,6 @@ class ResConv2dBlock(nn.Module):
             'activation_norm_type': activation_norm_type,
             'activation_norm_params': activation_norm_params,
             'weight_norm_type': weight_norm_type,
-            'weight_norm_params': weight_norm_params,
             'padding': padding
             }
 
