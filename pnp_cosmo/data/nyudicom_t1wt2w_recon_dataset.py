@@ -1,6 +1,5 @@
 from pathlib import Path
 import sys
-from typing import Sequence
 
 import numpy as np
 import torch

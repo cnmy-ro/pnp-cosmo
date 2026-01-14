@@ -1,5 +1,3 @@
-from types import SimpleNamespace
-
 import torch
 from torch import nn
 from torch.nn import Upsample as Upsample

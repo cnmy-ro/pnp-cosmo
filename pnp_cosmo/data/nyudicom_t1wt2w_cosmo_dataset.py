@@ -1,6 +1,5 @@
 from pathlib import Path
 import sys
-import os
 
 import numpy as np
 import torch
@@ -8,9 +7,6 @@ from torch.utils.data import Dataset
 import pandas as pd
 import SimpleITK as sitk
 import itk
-from skimage.morphology import opening, closing
-from skimage.morphology import disk
-from skimage.measure import label
 from scipy import ndimage
 import cv2
 
