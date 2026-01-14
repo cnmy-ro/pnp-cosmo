@@ -61,11 +61,11 @@ def pnp_cosmo(input, config):
     recon_intensity_range, ref_intensity_range = input['recon_intensity_range'], input['ref_intensity_range']
     pad_divisor = config['pad_divisor'] if 'pad_divisor' in config.keys() else 4
 
-    # MUNIT data processing
+    # CoSMo data processing
     cosmo = input['cosmo']
     ground_truth = input['ground_truth'].abs()
-    image_gt = mri_to_munit_transform_chain(ground_truth, pad_divisor, recon_intensity_range)
-    image_ref = mri_to_munit_transform_chain(input['image_ref'], pad_divisor, ref_intensity_range)
+    image_gt = mri_to_cosmo_transform_chain(ground_truth, pad_divisor, recon_intensity_range)
+    image_ref = mri_to_cosmo_transform_chain(input['image_ref'], pad_divisor, ref_intensity_range)
 
     content_gt_mean, content_gt_logvar = cosmo.networks[f'autoenc_{recon_domain_id}'].content_encoder(image_gt)
     content_ref_mean, content_ref_logvar = cosmo.networks[f'autoenc_{ref_domain_id}'].content_encoder(image_ref)
@@ -88,17 +88,17 @@ def pnp_cosmo(input, config):
     for i in tqdm(range(config['num_iters'])):
         
         # CC update
-        image_estim = mri_to_munit_transform_chain(image_estim, pad_divisor, recon_intensity_range)
+        image_estim = mri_to_cosmo_transform_chain(image_estim, pad_divisor, recon_intensity_range)
         style_estim = cosmo.networks[f'autoenc_{recon_domain_id}'].style_encoder(image_estim)
         image_estim = cosmo.networks[f'autoenc_{recon_domain_id}'].decode(content_estim, style_estim)
-        image_estim = munit_to_mri_transform_chain(image_estim, orig_shape, recon_intensity_range)
+        image_estim = cosmo_to_mri_transform_chain(image_estim, orig_shape, recon_intensity_range)
 
         # DC update
         image_estim = image_estim - dc_step_size * sense2d_forward_op_hermitian( sense2d_forward_op(image_estim, csm, mask, phase_map) - kspace, csm, mask, phase_map )
 
         # Content refinement
         if config['cr_enable']:
-            style_image = mri_to_munit_transform_chain(image_estim, pad_divisor, recon_intensity_range)
+            style_image = mri_to_cosmo_transform_chain(image_estim, pad_divisor, recon_intensity_range)
             style = cosmo.networks[f'autoenc_{recon_domain_id}'].style_encoder(style_image)
             content_estim = update_content(content_estim, style, kspace, csm, mask, phase_map, cosmo, cr_step_size, orig_shape, domain_ids[recon_domain], recon_intensity_range)
 
@@ -166,14 +166,14 @@ def prox_l1_norm_complex(tensor, alpha):
     # Based on: https://stats.stackexchange.com/questions/357339/soft-thresholding-for-the-lasso-with-complex-valued-data
     return torch.exp(1j*tensor.angle()) * torch.maximum(tensor.abs() - alpha, torch.zeros_like(tensor.abs()))
 
-def munit_to_mri_transform_chain(image, orig_shape, orig_range):
+def cosmo_to_mri_transform_chain(image, orig_shape, orig_range):
     image = unpad(image, orig_shape)
     if isinstance(orig_range, float): orig_range = [0., orig_range]
     image = rescale_intensity(image, from_range=[-1,1], to_range=orig_range)
     image = image + 1j*torch.zeros_like(image)
     return image
 
-def mri_to_munit_transform_chain(image, pad_divisor, orig_range):
+def mri_to_cosmo_transform_chain(image, pad_divisor, orig_range):
     image = image.abs()
     if isinstance(orig_range, float): orig_range = [0., orig_range]
     image = rescale_intensity(image, from_range=orig_range, to_range=[-1,1], clip=True)
@@ -188,7 +188,7 @@ def update_content(content_estim, style_estim, kspace, csm, mask, phase_map, cos
 
     # Compute loss
     image_from_content = cosmo.networks[f'autoenc_{recon_domain_id}'].decode(content_estim, style_estim.detach())
-    image_from_content = munit_to_mri_transform_chain(image_from_content, orig_shape, recon_intensity_range)
+    image_from_content = cosmo_to_mri_transform_chain(image_from_content, orig_shape, recon_intensity_range)
     loss = l2_norm((sense2d_forward_op(image_from_content, csm, mask, phase_map) - kspace) * mask) ** 2
     
     # Compute grad
