@@ -7,7 +7,7 @@ import torch
 from torch.utils.data import DataLoader
 import wandb
 
-sys.path.append("//wsl.localhost/Ubuntu/home/csrao/git-personal/llmr")  # Workstation
+sys.path.append("/path/to/llmr")
 from llmr.intensity import rescale_intensity
 
 

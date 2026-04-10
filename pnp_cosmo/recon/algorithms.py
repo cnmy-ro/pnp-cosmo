@@ -4,13 +4,14 @@ import torch
 from tqdm import tqdm
 import pywt, ptwt
 
-sys.path.append("//wsl.localhost/Ubuntu/home/csrao/git-personal/llmr")  # Workstation
+sys.path.append("/path/to/llmr")
 from llmr.fft import fft2c, ifft2c
 from llmr.intensity import rescale_intensity
 from llmr.conversion import torch2np_clean
 from llmr.metrics import nmse
 from llmr.spatial import pad_to_nearest_divisible_size, unpad
 
+from cosmo.cosmo_systems import MUNIT, StochasticContentMUNIT
 
 
 @torch.no_grad()
@@ -67,12 +68,16 @@ def pnp_cosmo(input, config):
     image_gt = mri_to_cosmo_transform_chain(ground_truth, pad_divisor, recon_intensity_range)
     image_ref = mri_to_cosmo_transform_chain(input['image_ref'], pad_divisor, ref_intensity_range)
 
-    content_gt_mean, content_gt_logvar = cosmo.networks[f'autoenc_{recon_domain_id}'].content_encoder(image_gt)
-    content_ref_mean, content_ref_logvar = cosmo.networks[f'autoenc_{ref_domain_id}'].content_encoder(image_ref)
+    if isinstance(cosmo, MUNIT):
+        content_gt = cosmo.networks[f'autoenc_{recon_domain_id}'].content_encoder(image_gt)
+        content_ref = cosmo.networks[f'autoenc_{ref_domain_id}'].content_encoder(image_ref)
+    elif isinstance(cosmo, StochasticContentMUNIT):
+        content_gt_mean, content_gt_logvar = cosmo.networks[f'autoenc_{recon_domain_id}'].content_encoder(image_gt)
+        content_ref_mean, content_ref_logvar = cosmo.networks[f'autoenc_{ref_domain_id}'].content_encoder(image_ref)
+        noise = torch.randn_like(content_gt_mean)
+        content_gt = content_gt_mean + torch.exp(0.5*content_gt_logvar) * noise
+        content_ref = content_ref_mean + torch.exp(0.5*content_ref_logvar) * noise
 
-    noise = torch.randn_like(content_gt_mean)
-    content_gt = content_gt_mean + torch.exp(0.5*content_gt_logvar) * noise        
-    content_ref = content_ref_mean + torch.exp(0.5*content_ref_logvar) * noise
     style_gt = cosmo.networks[f'autoenc_{recon_domain_id}'].style_encoder(image_gt)
     
     if config['ideal_content']: content_estim = content_gt

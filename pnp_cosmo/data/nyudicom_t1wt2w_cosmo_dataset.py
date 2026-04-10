@@ -10,7 +10,7 @@ import itk
 from scipy import ndimage
 import cv2
 
-sys.path.append("//wsl.localhost/Ubuntu/home/csrao/git-personal/llmr")  # Workstation
+sys.path.append("/path/to/llmr")
 from llmr.intensity import rescale_intensity
 from llmr.conversion import np2sitk, sitk2np, np2itk, itk2np
 from llmr.spatial import resample_sitk, pad_to_nearest_divisible_size

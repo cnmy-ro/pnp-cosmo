@@ -6,6 +6,89 @@ from cosmo.layers import *
 
 
 
+class MUNITAutoEncoder(nn.Module):
+    
+    def __init__(
+        self,
+        in_channels=1, 
+        content_channels=4,
+        style_latent_size=2,
+        num_filters=32,
+        max_num_filters=256,
+        num_features_mlp=256,
+        num_res_blocks=4,
+        num_downsamples_style=4,
+        num_downsamples_content=0,
+        num_layers_mlp=8,
+        content_norm_type='instance',
+        style_norm_type=None,
+        weight_norm_type=None,
+        output_nonlinearity='tanh'
+        ):
+
+        super().__init__()
+
+        self.style_encoder = StyleEncoder(
+            in_channels=in_channels,
+            style_latent_size=style_latent_size,  
+            num_filters=num_filters,
+            num_downsamples=num_downsamples_style, 
+            padding_mode='reflect', 
+            activation_norm_type=style_norm_type, 
+            weight_norm_type=weight_norm_type, 
+            nonlinearity='leakyrelu')
+
+        self.content_encoder = DeterministicContentEncoder(
+            in_channels=in_channels,
+            content_channels=content_channels,
+            num_filters=num_filters,
+            max_num_filters=max_num_filters,     
+            num_res_blocks=num_res_blocks,
+            num_downsamples=num_downsamples_content,
+            padding_mode='reflect',
+            activation_norm_type=content_norm_type,
+            weight_norm_type=weight_norm_type,
+            nonlinearity='leakyrelu')
+        
+        self.decoder = Decoder(
+            in_channels=in_channels,
+            content_channels=content_channels,
+            num_features_style=num_features_mlp,
+            num_filters=num_filters,
+            num_res_blocks=num_res_blocks,
+            num_upsamples=num_downsamples_content,
+            padding_mode='reflect',
+            weight_norm_type=weight_norm_type,
+            nonlinearity='leakyrelu',
+            output_nonlinearity=output_nonlinearity)
+        
+        self.mlp = MLP(
+            in_features=style_latent_size, 
+            out_features=num_features_mlp, 
+            latent_features=num_features_mlp, 
+            num_layers=num_layers_mlp, 
+            norm=None, 
+            nonlinearity='leakyrelu')
+        
+        self.style_channels = style_latent_size
+
+    def forward(self, image):
+        content_mean, content_logvar, style = self.encode(image)
+        content = content_mean + torch.exp(0.5 * content_logvar) * torch.randn_like(content_mean)
+        image_self = self.decode(content, style)
+        return image_self
+
+    def encode(self, image):
+        style = self.style_encoder(image)
+        content_mean, content_logvar = self.content_encoder(image)
+        return content_mean, content_logvar, style
+
+    def decode(self, content, style):
+        style = self.mlp(style)
+        image = self.decoder(content, style)
+        return image
+
+
 class SCMUNITAutoEncoder(nn.Module):
     
     def __init__(
@@ -38,7 +121,7 @@ class SCMUNITAutoEncoder(nn.Module):
             weight_norm_type=weight_norm_type, 
             nonlinearity='leakyrelu')
 
-        self.content_encoder = ContentEncoder(
+        self.content_encoder = StochasticContentEncoder(
             in_channels=in_channels,
             content_channels=content_channels,
             num_filters=num_filters,
@@ -153,7 +236,7 @@ class MLP(nn.Module):
         return self.model(x.view(x.size(0), -1))
     
 
-class ContentEncoder(nn.Module):
+class DeterministicContentEncoder(nn.Module):
 
     def __init__(
         self,
@@ -171,6 +254,56 @@ class ContentEncoder(nn.Module):
     
         super().__init__()
         
+        self.output_dim = content_channels
+
+        conv_params = {
+            'padding_mode': padding_mode,
+            'activation_norm_type': activation_norm_type,
+            'activation_norm_params': {'affine': True},
+            'weight_norm_type': weight_norm_type,
+            'nonlinearity': nonlinearity}
+
+        backbone = []
+        backbone += [Conv2dBlock(in_channels, num_filters, 7, 1, 3, **conv_params)]
+
+        # Downsampling blocks.
+        for _ in range(num_downsamples):
+            num_filters_prev = num_filters
+            num_filters = min(num_filters * 2, max_num_filters)
+            backbone += [Conv2dBlock(num_filters_prev, num_filters, 4, 2, 1, **conv_params)]
+
+        # Residual blocks.
+        for _ in range(num_res_blocks):
+            backbone += [ResConv2dBlock(num_filters, num_filters, 3, 1, 1, **conv_params)]        
+        backbone = nn.Sequential(*backbone)
+        to_content = Conv2dBlock(num_filters, content_channels, 1, 1, 0, weight_norm_type=weight_norm_type)        
+        self.model = nn.Sequential(backbone, to_content)
+
+    def forward(self, x):
+        content = self.model(x)
+        return content
+
+
+class StochasticContentEncoder(nn.Module):
+
+    def __init__(
+        self,
+        in_channels,
+        content_channels,
+        num_filters,
+        max_num_filters,
+        num_res_blocks,
+        num_downsamples,
+        padding_mode,
+        activation_norm_type,
+        weight_norm_type,
+        nonlinearity
+        ):
+    
+        super().__init__()
+        
+        self.output_dim = content_channels
+
         conv_params = {
             'padding_mode': padding_mode,
             'activation_norm_type': activation_norm_type,
@@ -192,8 +325,7 @@ class ContentEncoder(nn.Module):
             backbone += [ResConv2dBlock(num_filters, num_filters, 3, 1, 1, **conv_params)]        
         backbone = nn.Sequential(*backbone)
         content_mean_layer = Conv2dBlock(num_filters, content_channels, 1, 1, 0, weight_norm_type=weight_norm_type)
-        content_logvar_layer = Conv2dBlock(num_filters, content_channels, 1, 1, 0, weight_norm_type=weight_norm_type)
-        self.output_dim = content_channels
+        content_logvar_layer = Conv2dBlock(num_filters, content_channels, 1, 1, 0, weight_norm_type=weight_norm_type)        
         self.model = nn.ModuleDict({'backbone': backbone, 'content_mean_layer': content_mean_layer, 'content_logvar_layer': content_logvar_layer})
 
     def forward(self, x):

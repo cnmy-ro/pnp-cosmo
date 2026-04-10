@@ -5,13 +5,13 @@ device: cuda
 num_training_iters: 400000
 val_freq: 5000  # iters
 log_freq: 100
-checkpoint_root: /exports/lkeb-hpc/csrao/training_logs/nyu_brain_dicom_t1t2
+checkpoint_root: /path/to/checkpoints/dir
 load_checkpoint: null
 
 
 # Data
 dataset:
-  root: D:/Datasets/NYU_fastMRI/brain_dicom_t1t2_dataset
+  root: /path/to/data/dir
   fold: 1  # Crossval
   fetch_body: True
   size_divisor: 4
@@ -47,22 +47,20 @@ discriminator:  # Common settings for both discriminators
 
 criteria:
   gan:
-    weight: 1.0
+    weight: 1
     function: lsgan
   image_self: 
-    weight: 1.0  
+    weight: 1  
   content_self:
-    weight: 1.0  # PFT
+    weight: 1
   style_self:
-    weight: 1.0  # PFT   
+    weight: 1
   image_cycle:
-    weight: 1.0  # PFT
-  content_kl:
-    weight: 0.0000001
-  image_cross:   # PFT
-    weight: 0.0
-  content_cross: # PFT
-    weight: 0.0 
+    weight: 0
+  image_cross:
+    weight: 0
+  content_cross:
+    weight: 0 
 
 optimizer:
   lr_autoenc: 0.0001

@@ -4,7 +4,7 @@ import argparse
 import numpy as np
 import torch
 
-from cosmo_systems import StochasticContentMUNIT
+from cosmo_systems import MUNIT
 from data.nyudicom_t1wt2w_cosmo_dataset import NYUDicomT1WT2WCoSMoDataset
 from utils import *
 
@@ -35,9 +35,9 @@ def main():
     train_dataloader = InfiniteDataLoader(train_dataset, batch_size=1, num_workers=2, shuffle=True)
 
     # CoSMo model
-    model = StochasticContentMUNIT(conf, mode='train')
+    model = MUNIT(conf, mode='train')
     if conf['load_checkpoint'] is not None: model, prev_it = load_checkpoint(model, conf); start_it = prev_it + 1        
-    else:                                        start_it = 1
+    else:                                   start_it = 1
 
     # Training loop
     for it in range(start_it, conf['num_training_iters'] + 1):
