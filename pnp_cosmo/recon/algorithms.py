@@ -15,14 +15,12 @@ from cosmo.cosmo_systems import MUNIT, StochasticContentMUNIT
 
 
 @torch.no_grad()
-def l1_wavelet_ista(input, config):
+def cswt_ista(input, config):
 
     # Raw data processing
     kspace, mask, csm, max_eig = input['kspace'].to(torch.cfloat), input['mask'], input['csm'].to(torch.cfloat), input['max_eig']
-    ground_truth = input['ground_truth'].abs().to(torch.float)
 
     # Recon        
-    recon_nmse = []
     dc_step_size = 1 / max_eig
     image_estim = sense2d_forward_op_hermitian(kspace, csm, mask)
     orig_shape = image_estim.shape[1:]
@@ -42,11 +40,7 @@ def l1_wavelet_ista(input, config):
         # DC update
         image_estim = image_estim - dc_step_size * sense2d_forward_op_hermitian( sense2d_forward_op(image_estim, csm, mask) - kspace, csm, mask )
         
-        # Tracking
-        recon_nmse.append(nmse(torch2np_clean(ground_truth.abs()), torch2np_clean(image_estim.abs())))
-
-    output = {'image_estim': image_estim, 'recon_nmse': recon_nmse}
-    return output
+    return image_estim
 
 
 @torch.no_grad()
@@ -57,40 +51,29 @@ def pnp_cosmo(input, config):
     ref_domain_id, recon_domain_id = domain_ids[ref_domain], domain_ids[recon_domain]
 
     # Raw data processing
-    kspace, mask, csm, max_eig = input['kspace'], input['mask'], input['csm'], input['max_eig']
-    phase_map = input['phase_map']
+    kspace, mask, csm, max_eig, phase_map = input['kspace'], input['mask'], input['csm'], input['max_eig'], input['phase_map']
     recon_intensity_range, ref_intensity_range = input['recon_intensity_range'], input['ref_intensity_range']
     pad_divisor = config['pad_divisor'] if 'pad_divisor' in config.keys() else 4
 
     # CoSMo data processing
     cosmo = input['cosmo']
-    ground_truth = input['ground_truth'].abs()
-    image_gt = mri_to_cosmo_transform_chain(ground_truth, pad_divisor, recon_intensity_range)
     image_ref = mri_to_cosmo_transform_chain(input['image_ref'], pad_divisor, ref_intensity_range)
 
     if isinstance(cosmo, MUNIT):
-        content_gt = cosmo.networks[f'autoenc_{recon_domain_id}'].content_encoder(image_gt)
         content_ref = cosmo.networks[f'autoenc_{ref_domain_id}'].content_encoder(image_ref)
     elif isinstance(cosmo, StochasticContentMUNIT):
-        content_gt_mean, content_gt_logvar = cosmo.networks[f'autoenc_{recon_domain_id}'].content_encoder(image_gt)
         content_ref_mean, content_ref_logvar = cosmo.networks[f'autoenc_{ref_domain_id}'].content_encoder(image_ref)
-        noise = torch.randn_like(content_gt_mean)
-        content_gt = content_gt_mean + torch.exp(0.5*content_gt_logvar) * noise
-        content_ref = content_ref_mean + torch.exp(0.5*content_ref_logvar) * noise
-
-    style_gt = cosmo.networks[f'autoenc_{recon_domain_id}'].style_encoder(image_gt)
-    
-    if config['ideal_content']: content_estim = content_gt
-    else:                       content_estim = content_ref
+        noise = torch.randn_like(content_ref_mean)
+        content_ref = content_ref_mean + torch.exp(0.5*content_ref_logvar) * noise    
     
     # Recon
-    style_nmse, content_nmse, recon_nmse = [], [], []
     dc_step_size = 1 / max_eig
-    cr_step_size = config['cr_step_size']    
-    image_estim = sense2d_forward_op_hermitian(kspace, csm, mask, phase_map)
+    cr_step_size = config['cr_step_size']
+    image_estim = sense2d_forward_op_hermitian(kspace, csm, mask, phase_map)    
+    content_estim = content_ref.clone()
     orig_shape = image_estim.shape[1:]
 
-    for i in tqdm(range(config['num_iters'])):
+    for _ in tqdm(range(config['num_iters'])):
         
         # CC update
         image_estim = mri_to_cosmo_transform_chain(image_estim, pad_divisor, recon_intensity_range)
@@ -107,13 +90,7 @@ def pnp_cosmo(input, config):
             style = cosmo.networks[f'autoenc_{recon_domain_id}'].style_encoder(style_image)
             content_estim = update_content(content_estim, style, kspace, csm, mask, phase_map, cosmo, cr_step_size, orig_shape, domain_ids[recon_domain], recon_intensity_range)
 
-        # Tracking
-        style_nmse.append(nmse(torch2np_clean(style_gt), torch2np_clean(style_estim)))
-        content_nmse.append(nmse(torch2np_clean(content_gt), torch2np_clean(content_estim)))
-        recon_nmse.append(nmse(torch2np_clean(ground_truth.abs()), torch2np_clean(image_estim.abs())))
-        
-    output = {'image_estim': image_estim, 'style_nmse': style_nmse, 'content_nmse': content_nmse, 'recon_nmse': recon_nmse}
-    return output
+    return image_estim
 
 
 # ---
